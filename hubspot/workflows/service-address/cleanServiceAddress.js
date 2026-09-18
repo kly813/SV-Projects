@@ -14,8 +14,11 @@
  *   zip      -> service_zip_code_7_24
  *
  * Output fields to declare (all String, except changed = Boolean):
- *   locationName, businessName, cleanAddress, cleanAddress2, cleanCity,
- *   cleanState, cleanZip, changed
+ *   locationName, cleanAddress, cleanAddress2, cleanCity, cleanState,
+ *   cleanZip, changed
+ *
+ * businessName is also returned. Declare it only if you want to keep a
+ * business name typed ahead of the street; leaving it undeclared discards it.
  */
 
 // ---------------------------------------------------------------------------
@@ -148,9 +151,9 @@ function splitAtStreetSuffix(text) {
  */
 function normalize(value) {
   return String(value === null || value === undefined ? '' : value)
-    .replace(/[​-‍﻿]/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .replace(/[\r\n]+/g, ', ')
-    .replace(/[\t  ]+/g, ' ')
+    .replace(/[\t\u00A0 ]+/g, ' ')
     .replace(/\s*,\s*/g, ', ')
     .replace(/(?:,\s*)+,/g, ',')
     .trim();

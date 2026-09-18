@@ -1,109 +1,441 @@
 [
-  { "note": "clean record, nothing to do",
-    "in": { "address": "249 N Ripley St", "city": "Alpena", "state": "MI", "zip": "49707" },
-    "expect": "249 N Ripley St, Alpena, MI 49707" },
-
-  { "note": "trailing space on zip (the original report)",
-    "in": { "address": "2720 N Malinche Ave", "city": "Laredo", "state": "TX", "zip": "78043 " },
-    "expect": "2720 N Malinche Ave, Laredo, TX 78043" },
-
-  { "note": "leading space on street",
-    "in": { "address": " 3350 Farm to Market 2920", "city": "Spring", "state": "TX", "zip": "77388" },
-    "expect": "3350 Farm to Market 2920, Spring, TX 77388" },
-
-  { "note": "trailing spaces on street and city",
-    "in": { "address": "11800 Industriplex Blvd ", "city": "Baton Rouge ", "state": "LA", "zip": "32256" },
-    "expect": "11800 Industriplex Blvd, Baton Rouge, LA 32256" },
-
-  { "note": "leading space on city and zip",
-    "in": { "address": "5895 Trinity Parkway Suite 100 ", "city": "Centreville ", "state": "VA", "zip": " 20120" },
-    "expect": "5895 Trinity Parkway Suite 100, Centreville, VA 20120" },
-
-  { "note": "full address pasted into street, glued to city, state spelled out",
-    "in": { "address": "416 S. CrockettSherman, Texas 75090", "city": "Sherman", "state": "TX", "zip": "75090" },
-    "expect": "416 S. Crockett, Sherman, TX 75090" },
-
-  { "note": "glued paste with state code",
-    "in": { "address": "3829 Shore Dr.Virginia Beach, VA 23455", "city": "Virginia Beach", "state": "VA", "zip": "23455" },
-    "expect": "3829 Shore Dr., Virginia Beach, VA 23455" },
-
-  { "note": "pasted street with comma-separated city/state/zip",
-    "in": { "address": "67 VT-15, Jericho VT 05465", "address2": "67 VT-15", "city": "Jericho", "state": "VT", "zip": "05465" },
-    "expect": "67 VT-15, Jericho, VT 05465" },
-
-  { "note": "pasted street with suite, spelled-out state",
-    "in": { "address": "4700 Millenia Blvd., Suite 605,Orlando, Florida 32839", "city": "Orlando", "state": "FL", "zip": "32839" },
-    "expect": "4700 Millenia Blvd., Suite 605, Orlando, FL 32839" },
-
-  { "note": "street legitimately ENDS in the city name - must NOT be truncated",
-    "in": { "address": "2231 Avenida De Mesilla", "city": "Mesilla", "state": "NM", "zip": "88046" },
-    "expect": "2231 Avenida De Mesilla, Mesilla, NM 88046" },
-
-  { "note": "address2 exactly duplicates street",
-    "in": { "address": "1159 S Military Trl", "address2": "1159 S Military Trl", "city": " West Palm Beach", "state": "FL", "zip": "33415" },
-    "expect": "1159 S Military Trl, West Palm Beach, FL 33415" },
-
-  { "note": "address2 duplicates street except for whitespace",
-    "in": { "address": "2645 Alpine Rd ", "address2": "2645 Alpine Rd", "city": "Columbia", "state": "SC", "zip": "29223" },
-    "expect": "2645 Alpine Rd, Columbia, SC 29223" },
-
-  { "note": "address2 duplicates street, both with trailing comma",
-    "in": { "address": "27867 US Hwy 19 N, ", "address2": "27867 US Hwy 19 N, ", "city": "Clearwater", "state": "FL", "zip": "33761" },
-    "expect": "27867 US Hwy 19 N, Clearwater, FL 33761" },
-
-  { "note": "address2 holds the city",
-    "in": { "address": "N3676 US-2", "address2": "Iron Mountain", "city": "Iron Mountain", "state": "MI", "zip": "49801" },
-    "expect": "N3676 US-2, Iron Mountain, MI 49801" },
-
-  { "note": "zip pasted into the city field",
-    "in": { "address": "6718 Springfield Ave", "city": "78041 ", "state": "TX", "zip": "78041 " },
-    "expect": "6718 Springfield Ave, TX 78041" },
-
-  { "note": "city with a trailing comma",
-    "in": { "address": "15058 San Pedro Ave #101", "city": "San Antonio,", "state": "TX", "zip": "78232" },
-    "expect": "15058 San Pedro Ave #101, San Antonio, TX 78232" },
-
-  { "note": "legitimate internal comma in the street must survive",
-    "in": { "address": " 6700 Essington Ave, Ste A7", "city": "Philadelphia", "state": "PA", "zip": "19153" },
-    "expect": "6700 Essington Ave, Ste A7, Philadelphia, PA 19153" },
-
-  { "note": "genuine address2 is kept",
-    "in": { "address": "500 Main St", "address2": "Suite 400", "city": "Dallas", "state": "TX", "zip": "75201" },
-    "expect": "500 Main St, Suite 400, Dallas, TX 75201" },
-
-  { "note": "hyphenated city",
-    "in": { "address": "74-591 Honokohau St", "city": "Kailua-Kona", "state": "HI", "zip": "96740" },
-    "expect": "74-591 Honokohau St, Kailua-Kona, HI 96740" },
-
-  { "note": "street number resembling a zip must not be eaten",
-    "in": { "address": "78341 Hwy 25", "city": "Folsom", "state": "LA", "zip": "70437" },
-    "expect": "78341 Hwy 25, Folsom, LA 70437" },
-
-  { "note": "street ending in a 4-digit route number",
-    "in": { "address": "4650 Farm to Market 2920 C", "city": "Spring", "state": "TX", "zip": "77388" },
-    "expect": "4650 Farm to Market 2920 C, Spring, TX 77388" },
-
-  { "note": "missing city entirely",
-    "in": { "address": "100 Elm St", "city": "", "state": "TX", "zip": "75001" },
-    "expect": "100 Elm St, TX 75001" },
-
-  { "note": "street only",
-    "in": { "address": "100 Elm St", "city": "", "state": "", "zip": "" },
-    "expect": "100 Elm St" },
-
-  { "note": "everything empty",
-    "in": { "address": "", "city": "", "state": "", "zip": "" },
-    "expect": "" },
-
-  { "note": "ZIP+4 preserved",
-    "in": { "address": "100 Elm St", "city": "Dallas", "state": "TX", "zip": "75201-1234" },
-    "expect": "100 Elm St, Dallas, TX 75201-1234" },
-
-  { "note": "embedded newline from a pasted block",
-    "in": { "address": "1500 Wall Street\nBellevue", "city": "Bellevue", "state": "NE", "zip": "68005" },
-    "expect": "1500 Wall Street, Bellevue, NE 68005" },
-
-  { "note": "lowercase state code",
-    "in": { "address": "1428 W 6th St", "city": "El dorado", "state": "ks", "zip": "67042" },
-    "expect": "1428 W 6th St, El dorado, KS 67042" }
+  {
+    "note": "clean record, nothing to do",
+    "in": {
+      "address": "249 N Ripley St",
+      "city": "Alpena",
+      "state": "MI",
+      "zip": "49707"
+    },
+    "expect": "249 N Ripley St, Alpena, MI 49707"
+  },
+  {
+    "note": "trailing space on zip (the original report)",
+    "in": {
+      "address": "2720 N Malinche Ave",
+      "city": "Laredo",
+      "state": "TX",
+      "zip": "78043 "
+    },
+    "expect": "2720 N Malinche Ave, Laredo, TX 78043"
+  },
+  {
+    "note": "leading space on street",
+    "in": {
+      "address": " 3350 Farm to Market 2920",
+      "city": "Spring",
+      "state": "TX",
+      "zip": "77388"
+    },
+    "expect": "3350 Farm to Market 2920, Spring, TX 77388"
+  },
+  {
+    "note": "trailing spaces on street and city",
+    "in": {
+      "address": "11800 Industriplex Blvd ",
+      "city": "Baton Rouge ",
+      "state": "LA",
+      "zip": "32256"
+    },
+    "expect": "11800 Industriplex Blvd, Baton Rouge, LA 32256"
+  },
+  {
+    "note": "leading space on city and zip",
+    "in": {
+      "address": "5895 Trinity Parkway Suite 100 ",
+      "city": "Centreville ",
+      "state": "VA",
+      "zip": " 20120"
+    },
+    "expect": "5895 Trinity Parkway Suite 100, Centreville, VA 20120"
+  },
+  {
+    "note": "full address pasted into street, glued to city, state spelled out",
+    "in": {
+      "address": "416 S. CrockettSherman, Texas 75090",
+      "city": "Sherman",
+      "state": "TX",
+      "zip": "75090"
+    },
+    "expect": "416 S. Crockett, Sherman, TX 75090"
+  },
+  {
+    "note": "glued paste with state code",
+    "in": {
+      "address": "3829 Shore Dr.Virginia Beach, VA 23455",
+      "city": "Virginia Beach",
+      "state": "VA",
+      "zip": "23455"
+    },
+    "expect": "3829 Shore Dr., Virginia Beach, VA 23455"
+  },
+  {
+    "note": "pasted street with comma-separated city/state/zip",
+    "in": {
+      "address": "67 VT-15, Jericho VT 05465",
+      "address2": "67 VT-15",
+      "city": "Jericho",
+      "state": "VT",
+      "zip": "05465"
+    },
+    "expect": "67 VT-15, Jericho, VT 05465"
+  },
+  {
+    "note": "pasted street with suite, spelled-out state",
+    "in": {
+      "address": "4700 Millenia Blvd., Suite 605,Orlando, Florida 32839",
+      "city": "Orlando",
+      "state": "FL",
+      "zip": "32839"
+    },
+    "expect": "4700 Millenia Blvd., Suite 605, Orlando, FL 32839"
+  },
+  {
+    "note": "street legitimately ENDS in the city name - must NOT be truncated",
+    "in": {
+      "address": "2231 Avenida De Mesilla",
+      "city": "Mesilla",
+      "state": "NM",
+      "zip": "88046"
+    },
+    "expect": "2231 Avenida De Mesilla, Mesilla, NM 88046"
+  },
+  {
+    "note": "address2 exactly duplicates street",
+    "in": {
+      "address": "1159 S Military Trl",
+      "address2": "1159 S Military Trl",
+      "city": " West Palm Beach",
+      "state": "FL",
+      "zip": "33415"
+    },
+    "expect": "1159 S Military Trl, West Palm Beach, FL 33415"
+  },
+  {
+    "note": "address2 duplicates street except for whitespace",
+    "in": {
+      "address": "2645 Alpine Rd ",
+      "address2": "2645 Alpine Rd",
+      "city": "Columbia",
+      "state": "SC",
+      "zip": "29223"
+    },
+    "expect": "2645 Alpine Rd, Columbia, SC 29223"
+  },
+  {
+    "note": "address2 duplicates street, both with trailing comma",
+    "in": {
+      "address": "27867 US Hwy 19 N, ",
+      "address2": "27867 US Hwy 19 N, ",
+      "city": "Clearwater",
+      "state": "FL",
+      "zip": "33761"
+    },
+    "expect": "27867 US Hwy 19 N, Clearwater, FL 33761"
+  },
+  {
+    "note": "address2 holds the city",
+    "in": {
+      "address": "N3676 US-2",
+      "address2": "Iron Mountain",
+      "city": "Iron Mountain",
+      "state": "MI",
+      "zip": "49801"
+    },
+    "expect": "N3676 US-2, Iron Mountain, MI 49801"
+  },
+  {
+    "note": "zip pasted into the city field",
+    "in": {
+      "address": "6718 Springfield Ave",
+      "city": "78041 ",
+      "state": "TX",
+      "zip": "78041 "
+    },
+    "expect": "6718 Springfield Ave, TX 78041"
+  },
+  {
+    "note": "city with a trailing comma",
+    "in": {
+      "address": "15058 San Pedro Ave #101",
+      "city": "San Antonio,",
+      "state": "TX",
+      "zip": "78232"
+    },
+    "expect": "15058 San Pedro Ave #101, San Antonio, TX 78232"
+  },
+  {
+    "note": "legitimate internal comma in the street must survive",
+    "in": {
+      "address": " 6700 Essington Ave, Ste A7",
+      "city": "Philadelphia",
+      "state": "PA",
+      "zip": "19153"
+    },
+    "expect": "6700 Essington Ave, Ste A7, Philadelphia, PA 19153"
+  },
+  {
+    "note": "genuine address2 is kept",
+    "in": {
+      "address": "500 Main St",
+      "address2": "Suite 400",
+      "city": "Dallas",
+      "state": "TX",
+      "zip": "75201"
+    },
+    "expect": "500 Main St, Suite 400, Dallas, TX 75201"
+  },
+  {
+    "note": "hyphenated city",
+    "in": {
+      "address": "74-591 Honokohau St",
+      "city": "Kailua-Kona",
+      "state": "HI",
+      "zip": "96740"
+    },
+    "expect": "74-591 Honokohau St, Kailua-Kona, HI 96740"
+  },
+  {
+    "note": "street number resembling a zip must not be eaten",
+    "in": {
+      "address": "78341 Hwy 25",
+      "city": "Folsom",
+      "state": "LA",
+      "zip": "70437"
+    },
+    "expect": "78341 Hwy 25, Folsom, LA 70437"
+  },
+  {
+    "note": "street ending in a 4-digit route number",
+    "in": {
+      "address": "4650 Farm to Market 2920 C",
+      "city": "Spring",
+      "state": "TX",
+      "zip": "77388"
+    },
+    "expect": "4650 Farm to Market 2920 C, Spring, TX 77388"
+  },
+  {
+    "note": "missing city entirely",
+    "in": {
+      "address": "100 Elm St",
+      "city": "",
+      "state": "TX",
+      "zip": "75001"
+    },
+    "expect": "100 Elm St, TX 75001"
+  },
+  {
+    "note": "street only",
+    "in": {
+      "address": "100 Elm St",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "100 Elm St"
+  },
+  {
+    "note": "everything empty",
+    "in": {
+      "address": "",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": ""
+  },
+  {
+    "note": "ZIP+4 preserved",
+    "in": {
+      "address": "100 Elm St",
+      "city": "Dallas",
+      "state": "TX",
+      "zip": "75201-1234"
+    },
+    "expect": "100 Elm St, Dallas, TX 75201-1234"
+  },
+  {
+    "note": "embedded newline from a pasted block",
+    "in": {
+      "address": "1500 Wall Street\nBellevue",
+      "city": "Bellevue",
+      "state": "NE",
+      "zip": "68005"
+    },
+    "expect": "1500 Wall Street, Bellevue, NE 68005"
+  },
+  {
+    "note": "lowercase state code",
+    "in": {
+      "address": "1428 W 6th St",
+      "city": "El dorado",
+      "state": "ks",
+      "zip": "67042"
+    },
+    "expect": "1428 W 6th St, El dorado, KS 67042"
+  },
+  {
+    "note": "RECOVER: full address in street, city/state/zip all empty",
+    "in": {
+      "address": "2720 N Malinche Ave Laredo, TX 78043",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "2720 N Malinche Ave, Laredo, TX 78043",
+    "fields": {
+      "cleanAddress": "2720 N Malinche Ave",
+      "cleanCity": "Laredo",
+      "cleanState": "TX",
+      "cleanZip": "78043"
+    }
+  },
+  {
+    "note": "RECOVER: comma-delimited paste, spelled-out state, empty fields",
+    "in": {
+      "address": "100 Main St, Austin, Texas 78701",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "100 Main St, Austin, TX 78701",
+    "fields": {
+      "cleanAddress": "100 Main St",
+      "cleanCity": "Austin",
+      "cleanState": "TX",
+      "cleanZip": "78701"
+    }
+  },
+  {
+    "note": "RECOVER: newline-delimited block, empty fields",
+    "in": {
+      "address": "1500 Wall Street\nBellevue, NE 68005",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "1500 Wall Street, Bellevue, NE 68005",
+    "fields": {
+      "cleanAddress": "1500 Wall Street",
+      "cleanCity": "Bellevue",
+      "cleanState": "NE",
+      "cleanZip": "68005"
+    }
+  },
+  {
+    "note": "RELOCATE: zip sitting in the city field, zip field empty",
+    "in": {
+      "address": "6718 Springfield Ave",
+      "city": "78041",
+      "state": "TX",
+      "zip": ""
+    },
+    "expect": "6718 Springfield Ave, TX 78041",
+    "fields": {
+      "cleanCity": "",
+      "cleanZip": "78041"
+    }
+  },
+  {
+    "note": "RELOCATE: state code sitting in address2, state field empty",
+    "in": {
+      "address": "500 Oak St",
+      "address2": "TX",
+      "city": "Dallas",
+      "state": "",
+      "zip": "75201"
+    },
+    "expect": "500 Oak St, Dallas, TX 75201",
+    "fields": {
+      "cleanAddress2": "",
+      "cleanState": "TX"
+    }
+  },
+  {
+    "note": "RECOVER: partial - street + zip only, no state anywhere",
+    "in": {
+      "address": "900 Pine Rd 30097",
+      "city": "Johns Creek",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "900 Pine Rd, Johns Creek, 30097",
+    "fields": {
+      "cleanAddress": "900 Pine Rd",
+      "cleanZip": "30097"
+    }
+  },
+  {
+    "note": "GUARD: no corroboration, city field empty - street left intact",
+    "in": {
+      "address": "2231 Avenida De Mesilla",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "2231 Avenida De Mesilla",
+    "fields": {
+      "cleanAddress": "2231 Avenida De Mesilla",
+      "cleanCity": ""
+    }
+  },
+  {
+    "note": "GUARD: trailing unit must not be mistaken for a recovered city",
+    "in": {
+      "address": "11444 Menchaca Rd, Unit D",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "11444 Menchaca Rd, Unit D",
+    "fields": {
+      "cleanAddress": "11444 Menchaca Rd, Unit D",
+      "cleanCity": ""
+    }
+  },
+  {
+    "note": "GUARD: suite segment not taken as city during recovery",
+    "in": {
+      "address": "4700 Millenia Blvd., Suite 605, Orlando, FL 32839",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "4700 Millenia Blvd., Suite 605, Orlando, FL 32839",
+    "fields": {
+      "cleanAddress": "4700 Millenia Blvd., Suite 605",
+      "cleanCity": "Orlando"
+    }
+  },
+  {
+    "note": "GUARD: street number resembling a zip, all fields empty",
+    "in": {
+      "address": "78341 Hwy 25",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "78341 Hwy 25",
+    "fields": {
+      "cleanAddress": "78341 Hwy 25",
+      "cleanZip": ""
+    }
+  },
+  {
+    "note": "PROMOTE: street empty, full address sitting in address2",
+    "in": {
+      "address": "",
+      "address2": "742 Evergreen Ter, Springfield, OR 97477",
+      "city": "",
+      "state": "",
+      "zip": ""
+    },
+    "expect": "742 Evergreen Ter, Springfield, OR 97477",
+    "fields": {
+      "cleanAddress": "742 Evergreen Ter",
+      "cleanAddress2": "",
+      "cleanCity": "Springfield"
+    }
+  }
 ]

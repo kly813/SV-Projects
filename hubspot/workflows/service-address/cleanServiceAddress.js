@@ -2,7 +2,9 @@
  * HubSpot Workflow — Custom Code Action
  * Object: Service Addresses (p6253239_service_addresses)
  *
- * Cleans the five raw address properties, then builds a formatted Location Name.
+ * Reads all five address fields as one pool of text, works out which component
+ * each piece of it actually is, puts every piece in its proper field, then
+ * builds the formatted Location Name from the result.
  *
  * Input fields to map in the action UI (name them exactly as the left-hand key):
  *   address  -> service_address_7_24
@@ -10,14 +12,13 @@
  *   city     -> service_city_7_24
  *   state    -> service_state_7_24
  *   zip      -> service_zip_code_7_24
- *   country  -> country                (optional)
  *
  * Output fields to declare (all String, except changed = Boolean):
  *   locationName, cleanAddress, cleanAddress2, cleanCity, cleanState, cleanZip, changed
  */
 
 // ---------------------------------------------------------------------------
-// State/province names -> the codes used by service_state_7_24
+// Reference data
 // ---------------------------------------------------------------------------
 const STATE_NAMES = {
   alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA',
@@ -40,189 +41,320 @@ const STATE_NAMES = {
   saskatchewan: 'SK', yukon: 'YT'
 };
 
-const ZIP_RE = /\b(\d{5})(?:-(\d{4}))?\b/;
+const STATE_CODES = {};
+for (const name of Object.keys(STATE_NAMES)) STATE_CODES[STATE_NAMES[name]] = true;
+
+const ZIP_ONLY_RE = /^(\d{5})(?:-(\d{4}))?$/;
+const ZIP_TAIL_RE = /(\d{5})(?:-(\d{4}))?$/;
+
+// Segments that look like a city but are really a secondary address line.
+const UNIT_WORD_RE = /^(?:#|ste\.?|suite|unit|apt\.?|apartment|bldg\.?|building|fl\.?|floor|rm\.?|room|dept\.?|lot|trlr|space|spc|po\s*box|p\.?o\.?\s*box)\b/i;
+
+/**
+ * Common English street-type suffixes. When a pasted address has lost its comma
+ * ("2720 N Malinche Ave Laredo"), whatever follows the last of these is the
+ * city. Deliberately English-only: adding "Avenida" would split
+ * "2231 Avenida De Mesilla" into "2231 Avenida" + "De Mesilla".
+ */
+const STREET_SUFFIXES = [
+  'street', 'st', 'avenue', 'ave', 'road', 'rd', 'boulevard', 'blvd', 'drive',
+  'dr', 'lane', 'ln', 'way', 'court', 'ct', 'circle', 'cir', 'parkway', 'pkwy',
+  'place', 'pl', 'terrace', 'ter', 'trail', 'trl', 'highway', 'hwy', 'pike',
+  'row', 'run', 'loop', 'path', 'plaza', 'square', 'sq', 'expressway', 'expy',
+  'freeway', 'fwy', 'turnpike', 'tpke'
+];
+const STREET_SUFFIX_SET = {};
+for (const suffix of STREET_SUFFIXES) STREET_SUFFIX_SET[suffix] = true;
+
+/**
+ * Split "2720 N Malinche Ave Laredo" into street and city at the last street
+ * suffix. Returns null when there is no confident split.
+ */
+function splitAtStreetSuffix(text) {
+  const words = normalize(text).split(' ').filter(Boolean);
+  for (let i = words.length - 2; i >= 1; i -= 1) {
+    const word = words[i].toLowerCase().replace(/[.,]+$/, '');
+    if (!STREET_SUFFIX_SET[word]) continue;
+    const tail = words.slice(i + 1).join(' ');
+    if (!looksLikeCity(tail)) return null;
+    return { street: words.slice(0, i + 1).join(' '), city: tail };
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
-// Small helpers
+// Text helpers
 // ---------------------------------------------------------------------------
 
-/** Collapse newlines/tabs/non-breaking spaces into single spaces and trim. */
-function squash(value) {
+/**
+ * Collapse whitespace. A line break in pasted text marks a component boundary,
+ * so it becomes a comma rather than a space — that is what lets
+ * "1500 Wall Street\nBellevue" be split back into street and city.
+ */
+function normalize(value) {
   return String(value === null || value === undefined ? '' : value)
-    .replace(/[​-‍﻿]/g, '')   // zero-width junk from pasted text
-    .replace(/[\s ]+/g, ' ')
+    .replace(/[​-‍﻿]/g, '')
+    .replace(/[\r\n]+/g, ', ')
+    .replace(/[\t  ]+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/(?:,\s*)+,/g, ',')
     .trim();
 }
 
-/** Trim surrounding separator punctuation, but keep a legitimate trailing "." */
 function trimSeparators(value) {
-  return squash(value).replace(/^[\s,;:|\-]+/, '').replace(/[\s,;:|]+$/, '');
+  return normalize(value).replace(/^[\s,;:|]+/, '').replace(/[\s,;:|]+$/, '').trim();
 }
 
-/** Lowercase, strip all punctuation — for "are these the same thing?" tests. */
+/** Lowercase, punctuation-free — for "are these the same thing?" tests. */
 function compareKey(value) {
-  return squash(value).toLowerCase().replace(/[^a-z0-9]/g, '');
+  return normalize(value).toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function escapeRe(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** Apply `re` to the end of `text`; report whether anything came off. */
-function stripTail(text, re) {
-  const match = text.match(re);
-  if (!match) return { value: text, stripped: false };
-  const remainder = trimSeparators(text.slice(0, match.index));
-  // Never strip the street down to nothing.
-  if (!remainder) return { value: text, stripped: false };
-  return { value: remainder, stripped: true };
+/** Split on commas, dropping empties. */
+function segments(text) {
+  return normalize(text).split(',').map(s => s.trim()).filter(Boolean);
 }
 
-// ---------------------------------------------------------------------------
-// Field-level cleaners
-// ---------------------------------------------------------------------------
+function isZip(value) {
+  return ZIP_ONLY_RE.test(trimSeparators(value));
+}
 
-/** Zip: pull the 5-digit (or ZIP+4) code out of whatever was typed. */
-function cleanZip(raw) {
-  const match = squash(raw).match(ZIP_RE);
+function isStateToken(value) {
+  const token = trimSeparators(value);
+  if (/^[A-Za-z]{2}$/.test(token) && STATE_CODES[token.toUpperCase()]) return true;
+  return Object.prototype.hasOwnProperty.call(STATE_NAMES, token.toLowerCase());
+}
+
+function toStateCode(value) {
+  const token = trimSeparators(value);
+  if (/^[A-Za-z]{2}$/.test(token)) return token.toUpperCase();
+  return STATE_NAMES[token.toLowerCase()] || '';
+}
+
+function formatZip(value) {
+  const match = normalize(value).match(ZIP_TAIL_RE);
   if (!match) return '';
   return match[2] ? `${match[1]}-${match[2]}` : match[1];
 }
 
-/** State: enum values are already codes, so just normalize casing/whitespace. */
-function cleanState(raw) {
-  const value = trimSeparators(raw);
-  if (!value) return '';
-  if (/^[A-Za-z]{2}$/.test(value)) return value.toUpperCase();
-  const mapped = STATE_NAMES[value.toLowerCase()];
-  return mapped || value.toUpperCase();
+/**
+ * Does this segment read like a city name? Used only when recovering a city
+ * that no field supplied, so it errs toward saying no.
+ */
+function looksLikeCity(value) {
+  const token = trimSeparators(value);
+  if (token.length < 2) return false;
+  if (/\d/.test(token)) return false;            // "Suite 605", "2920"
+  if (UNIT_WORD_RE.test(token)) return false;    // "Unit D", "PO Box"
+  if (isStateToken(token)) return false;         // a bare state code
+  return /^[A-Za-z][A-Za-z .'\-]*$/.test(token);
 }
 
+// ---------------------------------------------------------------------------
+// Harvesting components off the end of a street string
+// ---------------------------------------------------------------------------
+
 /**
- * City: drop trailing commas, a trailing state, and values that are really a
- * zip code sitting in the wrong field.
+ * Pull a trailing zip off `text`.
+ * `known` (the record's own zip) is removed wherever it matches; an unknown zip
+ * is only taken when it is the final token, so "78341 Hwy 25" keeps its number.
  */
-function cleanCity(raw, state, zip) {
-  let city = trimSeparators(raw);
-  if (!city) return '';
-
-  // "78041" pasted into the city field.
-  if (/^\d{5}(-\d{4})?$/.test(city)) return '';
-  if (zip && compareKey(city) === compareKey(zip)) return '';
-
-  // "Laredo, TX" -> "Laredo"
-  if (state) {
-    city = stripTail(city, new RegExp(`[\\s,]+${escapeRe(state)}\\s*$`, 'i')).value;
+function harvestZip(text, known) {
+  if (known) {
+    const match = text.match(new RegExp(`[\\s,]*${escapeRe(known)}\\s*$`));
+    if (match) {
+      const rest = trimSeparators(text.slice(0, match.index));
+      if (rest) return { text: rest, zip: known };
+    }
+    return { text, zip: '' };
   }
-  return trimSeparators(city);
+
+  const match = text.match(/[\s,]*\b(\d{5})(-\d{4})?\s*$/);
+  if (!match) return { text, zip: '' };
+  const rest = trimSeparators(text.slice(0, match.index));
+  if (!rest) return { text, zip: '' };
+  return { text: rest, zip: match[2] ? `${match[1]}${match[2]}` : match[1] };
 }
 
 /**
- * Street: strip a city/state/zip tail that someone pasted in along with the
- * street. Runs in passes because each strip exposes the next one.
- *
- * The city is only removed when there is corroborating evidence — a state or
- * zip already came off, or the city sits behind a comma or a line break.
- * Without that guard "2231 Avenida De Mesilla" in Mesilla would be truncated
- * to "2231 Avenida De".
+ * Pull a trailing state off `text`, as a code or spelled out.
+ * An unknown state is only taken with corroboration: a zip came off the same
+ * string, or the state sits behind a comma.
  */
-function cleanStreet(raw, city, state, zip) {
-  let street = trimSeparators(raw);
-  if (!street) return '';
+function harvestState(text, known, sawZip) {
+  const candidates = [];
+  if (known) {
+    candidates.push(known);
+    for (const name of Object.keys(STATE_NAMES)) {
+      if (STATE_NAMES[name] === known) candidates.push(name);
+    }
+  } else {
+    const tail = text.match(/(?:^|[\s,])([A-Za-z]{2})\s*$/);
+    if (tail && STATE_CODES[tail[1].toUpperCase()]) candidates.push(tail[1]);
+    for (const name of Object.keys(STATE_NAMES)) {
+      if (new RegExp(`(?:^|[\\s,])${escapeRe(name)}\\s*$`, 'i').test(text)) {
+        candidates.push(name);
+      }
+    }
+  }
 
-  // A line break before the city is the same kind of evidence a comma is:
-  // it only shows up when a multi-line address block was pasted in.
-  const lineBroken =
-    !!city &&
-    new RegExp(`[\\r\\n]\\s*${escapeRe(city)}\\s*$`, 'i').test(String(raw));
+  for (const candidate of candidates) {
+    const match = text.match(new RegExp(`[\\s,]*\\b${escapeRe(candidate)}\\s*$`, 'i'));
+    if (!match) continue;
+    const rest = trimSeparators(text.slice(0, match.index));
+    if (!rest) continue;
+    const commaBound = /,\s*$/.test(text.slice(0, match.index + match[0].length).replace(new RegExp(`${escapeRe(candidate)}\\s*$`, 'i'), ''));
+    if (!known && !sawZip && !commaBound) continue;
+    return { text: rest, state: toStateCode(candidate) };
+  }
+  return { text, state: '' };
+}
 
+/**
+ * Pull a trailing city off `text`.
+ * When the city is known it is matched directly, without a leading word break,
+ * so the glued "CrockettSherman" paste splits. When it is not known, only a
+ * clearly delimited final segment is taken.
+ *
+ * Either way this needs corroboration — a state or zip already came off, or the
+ * city sits behind a comma. Without it, "2231 Avenida De Mesilla" in Mesilla
+ * would be truncated to "2231 Avenida De".
+ */
+function harvestCity(text, known, corroborated) {
+  if (known) {
+    const commaBound = new RegExp(`,\\s*${escapeRe(known)}\\s*$`, 'i').test(text);
+    if (!corroborated && !commaBound) return { text, city: '' };
+    const match = text.match(new RegExp(`[\\s,]*${escapeRe(known)}\\s*$`, 'i'));
+    if (!match) return { text, city: '' };
+    const rest = trimSeparators(text.slice(0, match.index));
+    if (!rest) return { text, city: '' };
+    return { text: rest, city: known };
+  }
+
+  if (!corroborated) return { text, city: '' };
+
+  // Preferred: a comma already marks the boundary.
+  const parts = segments(text);
+  if (parts.length >= 2) {
+    const last = parts[parts.length - 1];
+    if (looksLikeCity(last)) {
+      return { text: parts.slice(0, -1).join(', '), city: last };
+    }
+    return { text, city: '' };
+  }
+
+  // Fallback: no comma left, so split at the last street-type suffix.
+  const split = splitAtStreetSuffix(text);
+  if (split) return { text: split.street, city: split.city };
+  return { text, city: '' };
+}
+
+// ---------------------------------------------------------------------------
+// Parse
+// ---------------------------------------------------------------------------
+
+/**
+ * Take whatever is in the five fields, decide what each piece really is, and
+ * hand back a tidy set plus the formatted Location Name.
+ */
+function parseServiceAddress(input) {
+  let street = trimSeparators(input.address);
+  let line2 = trimSeparators(input.address2);
+  let city = trimSeparators(input.city);
+  let state = trimSeparators(input.state);
+  let zip = trimSeparators(input.zip);
+
+  // --- Pass 1: relocate whole fields that plainly hold the wrong component ---
+
+  // A zip typed into the city or second-line field.
+  for (const holder of ['city', 'line2']) {
+    const value = holder === 'city' ? city : line2;
+    if (value && isZip(value)) {
+      if (!zip) zip = value;
+      if (holder === 'city') city = ''; else line2 = '';
+    }
+  }
+  // A state typed into the city or second-line field.
+  for (const holder of ['city', 'line2']) {
+    const value = holder === 'city' ? city : line2;
+    if (value && isStateToken(value) && /^[A-Za-z]{2}$/.test(value)) {
+      if (!state) state = toStateCode(value);
+      if (holder === 'city') city = ''; else line2 = '';
+    }
+  }
+
+  zip = formatZip(zip);
+  state = toStateCode(state) || (isStateToken(state) ? toStateCode(state) : '');
+
+  // The second line sometimes holds the city, or repeats the street.
+  if (line2) {
+    const key = compareKey(line2);
+    if (key && city && key === compareKey(city)) line2 = '';
+    else if (key && zip && key === compareKey(zip)) line2 = '';
+    else if (key && state && key === compareKey(state)) line2 = '';
+    else if (key && compareKey(street) && key === compareKey(street)) line2 = '';
+  }
+
+  // Line 2 may itself be a pasted full address while line 1 is short.
+  const line2HasMore = line2 && compareKey(line2).length > compareKey(street).length &&
+    compareKey(line2).indexOf(compareKey(street)) === 0;
+  if (line2HasMore) {
+    street = line2;
+    line2 = '';
+  }
+
+  // --- Pass 2: peel city/state/zip off the end of the street ---
   for (let pass = 0; pass < 3; pass += 1) {
     const before = street;
-    let sawCityStateZip = false;
 
-    // 1. Trailing zip — only when it matches the record's own zip.
-    if (zip) {
-      const result = stripTail(street, new RegExp(`[\\s,]*${escapeRe(zip)}\\s*$`));
-      street = result.value;
-      sawCityStateZip = sawCityStateZip || result.stripped;
-    }
+    const zipResult = harvestZip(street, zip);
+    street = zipResult.text;
+    if (zipResult.zip && !zip) zip = formatZip(zipResult.zip);
+    const sawZip = !!zipResult.zip;
 
-    // 2. Trailing state, as a code or spelled out.
-    if (state) {
-      const spellings = [state];
-      for (const name of Object.keys(STATE_NAMES)) {
-        if (STATE_NAMES[name] === state) spellings.push(name);
-      }
-      for (const spelling of spellings) {
-        const result = stripTail(
-          street,
-          new RegExp(`[\\s,]*\\b${escapeRe(spelling)}\\s*$`, 'i')
-        );
-        if (result.stripped) {
-          street = result.value;
-          sawCityStateZip = true;
-          break;
-        }
-      }
-    }
+    const stateResult = harvestState(street, state, sawZip);
+    street = stateResult.text;
+    if (stateResult.state && !state) state = stateResult.state;
+    const sawState = !!stateResult.state;
 
-    // 3. Trailing city, guarded.
-    if (city) {
-      const commaGlued = new RegExp(`,\\s*${escapeRe(city)}\\s*$`, 'i').test(street);
-      if (sawCityStateZip || commaGlued || lineBroken) {
-        // No leading \b: catches the glued "CrockettSherman" paste.
-        street = stripTail(street, new RegExp(`[\\s,]*${escapeRe(city)}\\s*$`, 'i')).value;
-      }
-    }
+    const cityResult = harvestCity(street, city, sawZip || sawState);
+    street = cityResult.text;
+    if (cityResult.city && !city) city = cityResult.city;
 
     if (street === before) break;
   }
 
-  return trimSeparators(street);
-}
-
-/** Address 2: drop it when it just repeats another field. */
-function cleanAddress2(raw, street, city, state, zip) {
-  const line2 = trimSeparators(raw);
-  if (!line2) return '';
-
-  const key = compareKey(line2);
-  if (!key) return '';
-
-  const duplicates = [street, city, state, zip].map(compareKey).filter(Boolean);
-  if (duplicates.indexOf(key) !== -1) return '';
-
-  // Partial repeats: "1159 S Military Trl" vs "1159 S Military Trl Suite 2".
-  const streetKey = compareKey(street);
-  if (streetKey && (streetKey.indexOf(key) !== -1 || key.indexOf(streetKey) !== -1)) {
-    return '';
+  // --- Pass 3: the second line, once the street is settled ---
+  if (line2) {
+    const key = compareKey(line2);
+    const streetKey = compareKey(street);
+    const duplicate =
+      (city && key === compareKey(city)) ||
+      (state && key === compareKey(state)) ||
+      (zip && key === compareKey(zip)) ||
+      (streetKey && (streetKey.indexOf(key) !== -1 || key.indexOf(streetKey) !== -1));
+    if (duplicate) line2 = '';
   }
 
-  return line2;
-}
+  // A street that lost everything but still has a second line: promote it.
+  if (!street && line2) {
+    street = line2;
+    line2 = '';
+  }
 
-// ---------------------------------------------------------------------------
-// Assembly
-// ---------------------------------------------------------------------------
-
-/**
- * Clean all five fields and build the formatted one-line address.
- * Pure function — exported separately so it can be unit tested.
- */
-function buildLocationName(input) {
-  const zip = cleanZip(input.zip);
-  const state = cleanState(input.state);
-  const city = cleanCity(input.city, state, zip);
-  const street = cleanStreet(input.address, city, state, zip);
-  const line2 = cleanAddress2(input.address2, street, city, state, zip);
+  city = trimSeparators(city);
+  if (isZip(city)) city = '';
 
   const streetPart = [street, line2].filter(Boolean).join(', ');
   const stateZip = [state, zip].filter(Boolean).join(' ');
   const cityPart = [city, stateZip].filter(Boolean).join(', ');
-  const locationName = [streetPart, cityPart].filter(Boolean).join(', ');
 
   return {
-    locationName,
+    locationName: [streetPart, cityPart].filter(Boolean).join(', '),
     cleanAddress: street,
     cleanAddress2: line2,
     cleanCity: city,
@@ -237,7 +369,7 @@ function buildLocationName(input) {
 exports.main = async (event, callback) => {
   const fields = event.inputFields || {};
 
-  const result = buildLocationName({
+  const result = parseServiceAddress({
     address: fields.address,
     address2: fields.address2,
     city: fields.city,
@@ -246,11 +378,11 @@ exports.main = async (event, callback) => {
   });
 
   const changed =
-    squash(fields.address) !== result.cleanAddress ||
-    squash(fields.address2) !== result.cleanAddress2 ||
-    squash(fields.city) !== result.cleanCity ||
-    squash(fields.state) !== result.cleanState ||
-    squash(fields.zip) !== result.cleanZip;
+    trimSeparators(fields.address) !== result.cleanAddress ||
+    trimSeparators(fields.address2) !== result.cleanAddress2 ||
+    trimSeparators(fields.city) !== result.cleanCity ||
+    trimSeparators(fields.state) !== result.cleanState ||
+    trimSeparators(fields.zip) !== result.cleanZip;
 
   callback({
     outputFields: {
@@ -266,4 +398,5 @@ exports.main = async (event, callback) => {
 };
 
 // Exported for the test harness; HubSpot only ever calls exports.main.
-exports.buildLocationName = buildLocationName;
+exports.parseServiceAddress = parseServiceAddress;
+exports.buildLocationName = parseServiceAddress;

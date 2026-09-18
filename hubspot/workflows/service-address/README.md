@@ -33,6 +33,13 @@ label lookup is needed for US/Canada. Mexico and non-North-American options
 use ISO subdivision codes (`MX-NLE`, `GB-GRE`, `IN-TS`) which will render
 literally — see *Known gaps*.
 
+## How it works
+
+It does not clean each field in isolation. It reads all five fields as one
+pool of text, works out which address component each piece actually is, and
+puts every piece in its proper field — so content that landed in the wrong
+field gets **moved**, not discarded.
+
 ## What it cleans
 
 Every pattern below was found in live records:
@@ -48,15 +55,32 @@ Every pattern below was found in live records:
 | Zip pasted into the city field | city `"78041 "` | dropped |
 | Trailing comma on the city | `"San Antonio,"` | `San Antonio` |
 | Blank Address 2 | — | no `, ,` in the output |
+| Full address in street, **other fields empty** | `"2720 N Malinche Ave Laredo, TX 78043"` | city/state/zip recovered into their own fields |
+| Zip in the city field, **zip field empty** | city `"78041"` | moved to Service Zip Code |
+| State code in Address 2, **state field empty** | `"TX"` | moved to Service State |
+| Street empty, address in Address 2 | — | promoted to Service Address |
 
-## Guard against over-trimming
+## Guards against over-trimming
 
-The street's trailing city is only removed when there is corroborating
-evidence of a paste: a state or zip already came off the same string, or the
-city sits behind a comma or a line break.
+A component is only pulled off the street when there is corroborating evidence
+of a paste: a state or zip already came off the same string, or the piece sits
+behind a comma or a line break.
 
-Without that guard `2231 Avenida De Mesilla` in Mesilla, NM would be
-truncated to `2231 Avenida De`. That case is in the test suite.
+- Without that guard `2231 Avenida De Mesilla` in Mesilla, NM would be
+  truncated to `2231 Avenida De`.
+- An unknown zip is only taken when it is the final token, so `78341 Hwy 25`
+  keeps its house number.
+- A trailing unit is never mistaken for a city — `11444 Menchaca Rd, Unit D`
+  keeps `Unit D`.
+
+When a paste has lost its comma (`2720 N Malinche Ave Laredo`), the city is
+found by splitting at the last English street-type suffix (`Ave`, `St`,
+`Blvd`, …). That list is deliberately English-only: adding `Avenida` would
+split `2231 Avenida De Mesilla` into `2231 Avenida` + `De Mesilla`.
+
+**Not recoverable:** a glued paste with no delimiter and no street suffix,
+like `416 S. CrockettSherman`, when the city field is also empty. Splitting
+that needs a city gazetteer. With the city field populated it resolves fine.
 
 ## Workflow setup
 

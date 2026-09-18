@@ -1,7 +1,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-const { buildLocationName } = require('../cleanServiceAddress.js');
+const { parseServiceAddress } = require('../cleanServiceAddress.js');
 
 const cases = JSON.parse(
   fs.readFileSync(path.join(__dirname, 'fixtures.json'), 'utf8')
@@ -9,14 +9,32 @@ const cases = JSON.parse(
 
 let failed = 0;
 for (const testCase of cases) {
-  const actual = buildLocationName(testCase.in).locationName;
-  if (actual === testCase.expect) {
+  const result = parseServiceAddress(testCase.in);
+  const problems = [];
+
+  if (result.locationName !== testCase.expect) {
+    problems.push(
+      `locationName expected ${JSON.stringify(testCase.expect)} ` +
+      `got ${JSON.stringify(result.locationName)}`
+    );
+  }
+
+  // Some cases also pin where each component had to land.
+  for (const field of Object.keys(testCase.fields || {})) {
+    if (result[field] !== testCase.fields[field]) {
+      problems.push(
+        `${field} expected ${JSON.stringify(testCase.fields[field])} ` +
+        `got ${JSON.stringify(result[field])}`
+      );
+    }
+  }
+
+  if (!problems.length) {
     console.log(`  ok   ${testCase.note}`);
   } else {
     failed += 1;
     console.log(`  FAIL ${testCase.note}`);
-    console.log(`         expected: ${JSON.stringify(testCase.expect)}`);
-    console.log(`         actual:   ${JSON.stringify(actual)}`);
+    for (const problem of problems) console.log(`         ${problem}`);
   }
 }
 

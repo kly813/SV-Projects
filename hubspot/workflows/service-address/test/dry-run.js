@@ -8,7 +8,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { buildLocationName } = require('../cleanServiceAddress.js');
+const { parseServiceAddress } = require('../cleanServiceAddress.js');
 
 const file = process.argv[2] || path.join(__dirname, 'sample-records.json');
 const records = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -17,7 +17,7 @@ let fieldEdits = 0;
 let shortened = 0;
 
 for (const record of records) {
-  const out = buildLocationName(record);
+  const out = parseServiceAddress(record);
   const edits = [];
 
   if ((record.address || '') !== out.cleanAddress) {

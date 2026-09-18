@@ -67,7 +67,9 @@ async function api(path, method, body) {
       body: body ? JSON.stringify(body) : undefined
     });
     if (!response.ok) {
-      throw new Error(response.status + ' on ' + path + ': ' + (await response.text()).slice(0, 300));
+      // Keep the whole body: HubSpot's 403 lists the exact scopes it wants,
+      // and truncating it hides the one thing that would fix the error.
+      throw new Error(response.status + ' on ' + path + ': ' + (await response.text()).slice(0, 1500));
     }
     return response.status === 204 ? null : response.json();
   }

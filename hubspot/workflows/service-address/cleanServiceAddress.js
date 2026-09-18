@@ -194,6 +194,20 @@ function toStateCode(value) {
 }
 
 /**
+ * Normalize whatever is in the state field without ever discarding it.
+ *
+ * The dropdown carries ISO subdivision codes for anywhere outside the US and
+ * Canada — MX-NLE, GB-GRE, IN-TS, DO-13. Those are valid options this code has
+ * no name mapping for, so anything it cannot map is passed through as-is
+ * rather than blanked.
+ */
+function cleanStateValue(raw) {
+  const token = trimSeparators(raw);
+  if (!token) return '';
+  return toStateCode(token) || token.toUpperCase();
+}
+
+/**
  * Pull a zip out of a field. A digit run that is not 5 or 9 long is a typo
  * (real example: "415813") and is left alone rather than silently truncated
  * into a valid-looking but wrong zip.
@@ -352,7 +366,7 @@ function parseServiceAddress(input) {
   }
 
   zip = formatZip(zip);
-  state = toStateCode(state) || (isStateToken(state) ? toStateCode(state) : '');
+  state = cleanStateValue(state);
 
   // The second line sometimes holds the city, or repeats the street.
   if (line2) {

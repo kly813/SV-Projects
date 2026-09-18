@@ -560,5 +560,45 @@
     "fields": {
       "cleanAddress": ""
     }
+  },
+  {
+    "note": "STATE: Mexican ISO subdivision code preserved",
+    "in": {
+      "address": "100 Main St",
+      "city": "Monterrey",
+      "state": "MX-NLE",
+      "zip": "64000"
+    },
+    "expect": "100 Main St, Monterrey, MX-NLE 64000",
+    "fields": {
+      "cleanState": "MX-NLE"
+    }
+  },
+  {
+    "note": "STATE: UK ISO subdivision code preserved",
+    "in": {
+      "address": "100 High St",
+      "city": "London",
+      "state": "GB-GRE",
+      "zip": "",
+      "fields": {}
+    },
+    "expect": "100 High St, London, GB-GRE",
+    "fields": {
+      "cleanState": "GB-GRE"
+    }
+  },
+  {
+    "note": "STATE: lowercase ISO code uppercased, not discarded",
+    "in": {
+      "address": "100 Main St",
+      "city": "Hyderabad",
+      "state": "in-ts",
+      "zip": ""
+    },
+    "expect": "100 Main St, Hyderabad, IN-TS",
+    "fields": {
+      "cleanState": "IN-TS"
+    }
   }
 ]

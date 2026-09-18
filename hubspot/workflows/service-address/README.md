@@ -59,6 +59,9 @@ Every pattern below was found in live records:
 | Zip in the city field, **zip field empty** | city `"78041"` | moved to Service Zip Code |
 | State code in Address 2, **state field empty** | `"TX"` | moved to Service State |
 | Street empty, address in Address 2 | — | promoted to Service Address |
+| Business name ahead of the street | `"Acme Corp, 123 Main St"` | split out to the `businessName` output |
+| Zip typo of the wrong length | `"415813"` | left empty, not truncated to `15813` |
+| Placeholder street | `"-"` | cleared |
 
 ## Guards against over-trimming
 
@@ -82,6 +85,30 @@ split `2231 Avenida De Mesilla` into `2231 Avenida` + `De Mesilla`.
 like `416 S. CrockettSherman`, when the city field is also empty. Splitting
 that needs a city gazetteer. With the city field populated it resolves fine.
 
+## Business names
+
+A business name in front of the street is split off into the `businessName`
+output and kept out of `location_name`. Map it to a property if you want to
+keep it; leave it unmapped to discard it.
+
+The rule is strict on purpose — a false positive damages a good address. The
+leading text is only treated as a business name when it contains no digits, is
+not a unit word, is either multi-word or carries a business word (`Inc`,
+`LLC`, `Clinic`, `Group`, …), and is followed by something that actually opens
+a street. That keeps these intact, all of them real records:
+
+| Kept as-is | Why |
+|---|---|
+| `S 162nd St` | no house number to split at |
+| `N3676 US-2` | grid-style house number |
+| `One Microsoft Way` | spelled-out house number |
+| `PO Box 1234` | unit word |
+
+Worth knowing: across a 150-record sample, **no** record had a business name
+in `service_address_7_24`. They sit in `location_name` instead, which this
+workflow overwrites by design. So this path exists for safety, not because it
+fires often.
+
 ## Workflow setup
 
 1. **Custom code** action (Operations Hub Professional required), Node.js.
@@ -96,9 +123,9 @@ that needs a city gazetteer. With the city field populated it resolves fine.
    | `state` | Service State 7.24 |
    | `zip` | Service Zip Code 7.24 |
 
-3. Declare the outputs: `locationName`, `cleanAddress`, `cleanAddress2`,
-   `cleanCity`, `cleanState`, `cleanZip` as **String**, and `changed` as
-   **Boolean**.
+3. Declare the outputs: `locationName`, `businessName`, `cleanAddress`,
+   `cleanAddress2`, `cleanCity`, `cleanState`, `cleanZip` as **String**, and
+   `changed` as **Boolean**.
 4. Add **Edit record property** actions mapping each output back to its
    property. Set `location_name` from `locationName`; set the five source
    properties from their `clean*` outputs if you want the underlying data

@@ -437,5 +437,128 @@
       "cleanAddress2": "",
       "cleanCity": "Springfield"
     }
+  },
+  {
+    "note": "BUSINESS: name glued ahead of the street",
+    "in": {
+      "address": "Chiropractic First Family Wellness 1480 Williston Rd",
+      "city": "Burlington",
+      "state": "VT",
+      "zip": "05403"
+    },
+    "expect": "1480 Williston Rd, Burlington, VT 05403",
+    "fields": {
+      "businessName": "Chiropractic First Family Wellness",
+      "cleanAddress": "1480 Williston Rd"
+    }
+  },
+  {
+    "note": "BUSINESS: name separated by a comma",
+    "in": {
+      "address": "Acme Corp, 123 Main St",
+      "city": "Austin",
+      "state": "TX",
+      "zip": "78701"
+    },
+    "expect": "123 Main St, Austin, TX 78701",
+    "fields": {
+      "businessName": "Acme Corp",
+      "cleanAddress": "123 Main St"
+    }
+  },
+  {
+    "note": "BUSINESS: ampersand in the name",
+    "in": {
+      "address": "Mogilles New & Used Large Truck Parts 11789 Old Gentilly Rd",
+      "city": "New Orleans",
+      "state": "LA",
+      "zip": "70127"
+    },
+    "expect": "11789 Old Gentilly Rd, New Orleans, LA 70127",
+    "fields": {
+      "businessName": "Mogilles New & Used Large Truck Parts"
+    }
+  },
+  {
+    "note": "BUSINESS GUARD: street with no house number is not a business name",
+    "in": {
+      "address": "S 162nd St",
+      "city": "New Berlin",
+      "state": "WI",
+      "zip": "53151"
+    },
+    "expect": "S 162nd St, New Berlin, WI 53151",
+    "fields": {
+      "businessName": "",
+      "cleanAddress": "S 162nd St"
+    }
+  },
+  {
+    "note": "BUSINESS GUARD: grid-style house number kept",
+    "in": {
+      "address": "N3676 US-2",
+      "city": "Iron Mountain",
+      "state": "MI",
+      "zip": "49801"
+    },
+    "expect": "N3676 US-2, Iron Mountain, MI 49801",
+    "fields": {
+      "businessName": "",
+      "cleanAddress": "N3676 US-2"
+    }
+  },
+  {
+    "note": "BUSINESS GUARD: spelled-out house number kept",
+    "in": {
+      "address": "One Microsoft Way",
+      "city": "Redmond",
+      "state": "WA",
+      "zip": "98052"
+    },
+    "expect": "One Microsoft Way, Redmond, WA 98052",
+    "fields": {
+      "businessName": "",
+      "cleanAddress": "One Microsoft Way"
+    }
+  },
+  {
+    "note": "BUSINESS GUARD: PO Box is not a business name",
+    "in": {
+      "address": "PO Box 1234",
+      "city": "Austin",
+      "state": "TX",
+      "zip": "78701"
+    },
+    "expect": "PO Box 1234, Austin, TX 78701",
+    "fields": {
+      "businessName": "",
+      "cleanAddress": "PO Box 1234"
+    }
+  },
+  {
+    "note": "ZIP: 6-digit typo is not truncated into a valid-looking zip",
+    "in": {
+      "address": "102 N Main St",
+      "city": "Antwerp",
+      "state": "OH",
+      "zip": "415813"
+    },
+    "expect": "102 N Main St, Antwerp, OH",
+    "fields": {
+      "cleanZip": ""
+    }
+  },
+  {
+    "note": "PLACEHOLDER: a lone dash is not an address",
+    "in": {
+      "address": "-",
+      "city": "Herndon",
+      "state": "VA",
+      "zip": "20170"
+    },
+    "expect": "Herndon, VA 20170",
+    "fields": {
+      "cleanAddress": ""
+    }
   }
 ]

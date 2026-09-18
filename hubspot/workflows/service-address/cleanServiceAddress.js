@@ -14,7 +14,8 @@
  *   zip      -> service_zip_code_7_24
  *
  * Output fields to declare (all String, except changed = Boolean):
- *   locationName, cleanAddress, cleanAddress2, cleanCity, cleanState, cleanZip, changed
+ *   locationName, businessName, cleanAddress, cleanAddress2, cleanCity,
+ *   cleanState, cleanZip, changed
  */
 
 // ---------------------------------------------------------------------------
@@ -45,7 +46,7 @@ const STATE_CODES = {};
 for (const name of Object.keys(STATE_NAMES)) STATE_CODES[STATE_NAMES[name]] = true;
 
 const ZIP_ONLY_RE = /^(\d{5})(?:-(\d{4}))?$/;
-const ZIP_TAIL_RE = /(\d{5})(?:-(\d{4}))?$/;
+const ZIP_TAIL_RE = /(?:^|[^\d-])(\d{5})(?:-(\d{4}))?$/;
 
 // Segments that look like a city but are really a secondary address line.
 const UNIT_WORD_RE = /^(?:#|ste\.?|suite|unit|apt\.?|apartment|bldg\.?|building|fl\.?|floor|rm\.?|room|dept\.?|lot|trlr|space|spc|po\s*box|p\.?o\.?\s*box)\b/i;
@@ -65,6 +66,60 @@ const STREET_SUFFIXES = [
 ];
 const STREET_SUFFIX_SET = {};
 for (const suffix of STREET_SUFFIXES) STREET_SUFFIX_SET[suffix] = true;
+
+/** Tokens that open a street: "123", "123A", "N3676", "10600". */
+const HOUSE_NUMBER_RE = /^[A-Za-z]?\d+[A-Za-z]?(?:-\d+)?$/;
+
+/** Words that mark text as an organization rather than a street. */
+const BUSINESS_WORD_RE = /\b(?:inc|llc|llp|lp|ltd|corp|corporation|co|company|pc|pa|pllc|group|associates|assoc|partners|enterprises|industries|holdings|services|solutions|systems|technologies|foundation|trust|institute|academy|school|church|clinic|hospital|center|centre|salon|restaurant|bank|store|market|shop|studio|agency|department|dept|university|college)\b\.?/i;
+
+/**
+ * Pull a leading business name off a street line, e.g.
+ * "Chiropractic First Family Wellness 1480 Williston Rd".
+ *
+ * Deliberately strict, because a false positive damages a good address. The
+ * leading text must contain no digits, must not be a unit word ("PO Box"),
+ * must be either multi-word or carry a business word, and must be followed by
+ * something that actually opens a street. That is what keeps "S 162nd St" and
+ * "One Microsoft Way" intact.
+ */
+function extractBusinessName(text) {
+  const value = trimSeparators(text);
+  if (!value) return { businessName: '', street: value };
+
+  const accept = (name, street) => {
+    const trimmedName = trimSeparators(name);
+    const trimmedStreet = trimSeparators(street);
+    if (!trimmedStreet || trimmedName.length < 3) return null;
+    if (/\d/.test(trimmedName)) return null;
+    if (UNIT_WORD_RE.test(trimmedName)) return null;
+    const multiWord = trimmedName.split(' ').filter(Boolean).length > 1;
+    if (!multiWord && !BUSINESS_WORD_RE.test(trimmedName)) return null;
+    return { businessName: trimmedName, street: trimmedStreet };
+  };
+
+  // "Acme Corp, 123 Main St" — the comma already marks the boundary.
+  const parts = segments(value);
+  if (parts.length >= 2) {
+    const rest = parts.slice(1).join(', ');
+    const firstRestWord = rest.split(' ')[0] || '';
+    if (HOUSE_NUMBER_RE.test(firstRestWord)) {
+      const split = accept(parts[0], rest);
+      if (split) return split;
+    }
+  }
+
+  // "Acme Corp 123 Main St" — find where the street starts.
+  const words = value.split(' ').filter(Boolean);
+  for (let i = 1; i < words.length - 1; i += 1) {
+    if (!HOUSE_NUMBER_RE.test(words[i])) continue;
+    const split = accept(words.slice(0, i).join(' '), words.slice(i).join(' '));
+    if (split) return split;
+    break;
+  }
+
+  return { businessName: '', street: value };
+}
 
 /**
  * Split "2720 N Malinche Ave Laredo" into street and city at the last street
@@ -135,8 +190,14 @@ function toStateCode(value) {
   return STATE_NAMES[token.toLowerCase()] || '';
 }
 
+/**
+ * Pull a zip out of a field. A digit run that is not 5 or 9 long is a typo
+ * (real example: "415813") and is left alone rather than silently truncated
+ * into a valid-looking but wrong zip.
+ */
 function formatZip(value) {
-  const match = normalize(value).match(ZIP_TAIL_RE);
+  const text = normalize(value);
+  const match = text.match(ZIP_TAIL_RE);
   if (!match) return '';
   return match[2] ? `${match[1]}-${match[2]}` : match[1];
 }
@@ -349,12 +410,20 @@ function parseServiceAddress(input) {
   city = trimSeparators(city);
   if (isZip(city)) city = '';
 
+  // A placeholder like "-" is not an address.
+  if (street && !/[A-Za-z0-9]/.test(street)) street = '';
+
+  const named = extractBusinessName(street);
+  const businessName = named.businessName;
+  street = named.street;
+
   const streetPart = [street, line2].filter(Boolean).join(', ');
   const stateZip = [state, zip].filter(Boolean).join(' ');
   const cityPart = [city, stateZip].filter(Boolean).join(', ');
 
   return {
     locationName: [streetPart, cityPart].filter(Boolean).join(', '),
+    businessName,
     cleanAddress: street,
     cleanAddress2: line2,
     cleanCity: city,
@@ -387,6 +456,7 @@ exports.main = async (event, callback) => {
   callback({
     outputFields: {
       locationName: result.locationName,
+      businessName: result.businessName,
       cleanAddress: result.cleanAddress,
       cleanAddress2: result.cleanAddress2,
       cleanCity: result.cleanCity,

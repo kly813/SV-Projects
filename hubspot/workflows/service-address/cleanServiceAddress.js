@@ -6,12 +6,16 @@
  * each piece of it actually is, puts every piece in its proper field, then
  * builds the formatted Location Name from the result.
  *
- * Input fields to map in the action UI (name them exactly as the left-hand key):
+ * Input fields to map in the action UI. Name each input with the left-hand
+ * key; the property's own name is also accepted.
  *   address  -> service_address_7_24
  *   address2 -> service_address_2
  *   city     -> service_city_7_24
  *   state    -> service_state_7_24
  *   zip      -> service_zip_code_7_24
+ *
+ * If no input is mapped the action throws instead of returning empty strings,
+ * which the Edit record property actions would otherwise write over live data.
  *
  * Output fields to declare (all String, except changed = Boolean):
  *   locationName, cleanAddress, cleanAddress2, cleanCity, cleanZip, changed
@@ -597,23 +601,53 @@ function parseServiceAddress(input) {
 // ---------------------------------------------------------------------------
 // Workflow entry point
 // ---------------------------------------------------------------------------
+/** First of `names` that the action actually supplied. */
+function pickInput(fields, names) {
+  for (const name of names) {
+    if (fields[name] !== undefined && fields[name] !== null) return fields[name];
+  }
+  return undefined;
+}
+
+const INPUT_ALIASES = {
+  address: ['address', 'service_address_7_24', 'serviceAddress', 'street'],
+  address2: ['address2', 'service_address_2', 'serviceAddress2', 'street2'],
+  city: ['city', 'service_city_7_24', 'serviceCity'],
+  state: ['state', 'service_state_7_24', 'serviceState'],
+  zip: ['zip', 'service_zip_code_7_24', 'serviceZip', 'zipCode', 'postalCode']
+};
+
 exports.main = async (event, callback) => {
   const fields = event.inputFields || {};
 
-  const result = parseServiceAddress({
-    address: fields.address,
-    address2: fields.address2,
-    city: fields.city,
-    state: fields.state,
-    zip: fields.zip
-  });
+  const raw = {};
+  let mappedCount = 0;
+  for (const key of Object.keys(INPUT_ALIASES)) {
+    raw[key] = pickInput(fields, INPUT_ALIASES[key]);
+    if (raw[key] !== undefined) mappedCount += 1;
+  }
+
+  // Nothing came through at all. That is a misconfigured action, not a record
+  // with no address — an unmapped input is undefined, while an empty field
+  // arrives as "". Failing loudly beats returning empty strings that the Edit
+  // record property actions would happily write over real data.
+  if (mappedCount === 0) {
+    throw new Error(
+      'No input fields were mapped. Add data inputs named address, address2, ' +
+      'city, state and zip, mapped to service_address_7_24, ' +
+      'service_address_2, service_city_7_24, service_state_7_24 and ' +
+      'service_zip_code_7_24.'
+    );
+  }
+
+  const result = parseServiceAddress(raw);
 
   const changed =
-    trimSeparators(fields.address) !== result.cleanAddress ||
-    trimSeparators(fields.address2) !== result.cleanAddress2 ||
-    trimSeparators(fields.city) !== result.cleanCity ||
-    trimSeparators(fields.state) !== result.cleanState ||
-    trimSeparators(fields.zip) !== result.cleanZip;
+    trimSeparators(raw.address) !== result.cleanAddress ||
+    trimSeparators(raw.address2) !== result.cleanAddress2 ||
+    trimSeparators(raw.city) !== result.cleanCity ||
+    trimSeparators(raw.state) !== result.cleanState ||
+    trimSeparators(raw.zip) !== result.cleanZip;
 
   callback({
     outputFields: {

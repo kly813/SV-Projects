@@ -781,5 +781,74 @@
       "cleanAddress": "100 Main St",
       "cleanCity": ""
     }
+  },
+  {
+    "note": "NOTE: sales note typed after the street (record 33173056134)",
+    "in": {
+      "address": "14934 Webb Chapel Road Lady at the first desk says the office manager Jessica would know who makes decesions, maybe an corporate account, non WISP candidate",
+      "city": "Farmers Branch",
+      "state": "TX",
+      "zip": "75234"
+    },
+    "expect": "14934 Webb Chapel Road, Farmers Branch, TX 75234",
+    "fields": {
+      "cleanAddress": "14934 Webb Chapel Road",
+      "removedNote": "Lady at the first desk says the office manager Jessica would know who makes decesions, maybe an corporate account, non WISP candidate"
+    }
+  },
+  {
+    "note": "NOTE GUARD: suite after the suffix is kept",
+    "in": {
+      "address": "599 W Sam Ridley Pkwy Suite 103",
+      "city": "Smyrna",
+      "state": "TN",
+      "zip": "37167"
+    },
+    "expect": "599 W Sam Ridley Pkwy Suite 103, Smyrna, TN 37167",
+    "fields": {
+      "cleanAddress": "599 W Sam Ridley Pkwy Suite 103",
+      "removedNote": ""
+    }
+  },
+  {
+    "note": "NOTE GUARD: directional after the suffix is kept",
+    "in": {
+      "address": "4201 Highway 11 N",
+      "city": "Picayune",
+      "state": "MS",
+      "zip": "39466"
+    },
+    "expect": "4201 Highway 11 N, Picayune, MS 39466",
+    "fields": {
+      "cleanAddress": "4201 Highway 11 N",
+      "removedNote": ""
+    }
+  },
+  {
+    "note": "NOTE GUARD: unit number after the suffix is kept",
+    "in": {
+      "address": "1026 Florin Road #323",
+      "city": "Sacramento",
+      "state": "CA",
+      "zip": "95831"
+    },
+    "expect": "1026 Florin Road #323, Sacramento, CA 95831",
+    "fields": {
+      "cleanAddress": "1026 Florin Road #323",
+      "removedNote": ""
+    }
+  },
+  {
+    "note": "NOTE GUARD: long street with no prose words is kept",
+    "in": {
+      "address": "100 Main Street Building B Rear Entrance Loading Dock",
+      "city": "Austin",
+      "state": "TX",
+      "zip": "78701"
+    },
+    "expect": "100 Main Street Building B Rear Entrance Loading Dock, Austin, TX 78701",
+    "fields": {
+      "removedNote": ""
+    }
   }
 ]

@@ -151,6 +151,68 @@ function isPlaceholder(value) {
 }
 
 /**
+ * Words that show up in a sentence but essentially never in a US street name.
+ *
+ * "the", "and", "at", "of", "to", "in" and "on" are deliberately absent: they
+ * appear in real streets such as "Farm to Market 1626", "Old Spanish Trail"
+ * and "Avenue of the Americas".
+ */
+const PROSE_WORDS = {};
+for (const word of [
+  'says', 'said', 'say', 'would', 'could', 'should', 'will', 'wont',
+  'who', 'whom', 'whose', 'is', 'are', 'was', 'were', 'has', 'have', 'had',
+  'does', 'did', 'doesnt', 'didnt', 'maybe', 'about', 'please', 'call',
+  'called', 'ask', 'asked', 'tell', 'told', 'need', 'needs', 'want', 'wants',
+  'know', 'knows', 'think', 'thinks', 'they', 'she', 'he', 'her', 'his',
+  'their', 'our', 'your', 'we', 'you', 'not', 'but', 'because', 'however',
+  'also', 'very', 'really', 'just', 'only', 'still', 'already', 'again',
+  'when', 'where', 'why', 'how', 'what', 'which', 'this', 'that', 'these',
+  'those', 'there', 'with', 'without', 'from', 'after', 'before', 'while',
+  'until', 'since', 'unless', 'though', 'although', 'manager', 'owner',
+  'decisions', 'decesions', 'account', 'candidate', 'customer', 'contact'
+]) PROSE_WORDS[word] = true;
+
+/**
+ * Strip a free-text note that was typed into the street field after the actual
+ * address, e.g. "14934 Webb Chapel Road Lady at the first desk says ...".
+ *
+ * Cuts at the first street-type suffix, but only when what follows really is
+ * prose: at least five words AND at least two words that do not belong in a
+ * street name. Both tests are needed to protect ordinary continuations -
+ * "599 W Sam Ridley Pkwy Suite 103", "1026 Florin Road #323",
+ * "4201 Highway 11 N" and "3648 FM 1960 Rd. W" all survive untouched.
+ *
+ * Returns the note as well, so it can be kept rather than silently destroyed.
+ */
+function stripTrailingNote(text) {
+  const value = trimSeparators(text);
+  const words = value.split(' ').filter(Boolean);
+  if (words.length < 7 || !HOUSE_NUMBER_RE.test(words[0])) {
+    return { street: value, note: '' };
+  }
+
+  for (let i = 1; i < words.length - 1; i += 1) {
+    const word = words[i].toLowerCase().replace(/[.,]+$/, '');
+    if (!STREET_SUFFIX_SET[word]) continue;
+
+    const tail = words.slice(i + 1);
+    if (tail.length < 5) return { street: value, note: '' };
+
+    let proseHits = 0;
+    for (const candidate of tail) {
+      if (PROSE_WORDS[candidate.toLowerCase().replace(/[^a-z]/gi, '')]) proseHits += 1;
+    }
+    if (proseHits < 2) return { street: value, note: '' };
+
+    return {
+      street: trimSeparators(words.slice(0, i + 1).join(' ')),
+      note: trimSeparators(tail.join(' '))
+    };
+  }
+  return { street: value, note: '' };
+}
+
+/**
  * Does this value open like a street? A house number followed by at least one
  * more word. Used to spot a record whose street and city fields are swapped.
  */
@@ -505,6 +567,9 @@ function parseServiceAddress(input) {
   // A placeholder like "-" is not an address.
   if (street && !/[A-Za-z0-9]/.test(street)) street = '';
 
+  const noted = stripTrailingNote(street);
+  street = noted.street;
+
   const named = extractBusinessName(street);
   const businessName = named.businessName || swappedLeftover;
   street = named.street;
@@ -516,6 +581,7 @@ function parseServiceAddress(input) {
   return {
     locationName: [streetPart, cityPart].filter(Boolean).join(', '),
     businessName,
+    removedNote: noted.note,
     cleanAddress: street,
     cleanAddress2: line2,
     cleanCity: city,
@@ -549,6 +615,7 @@ exports.main = async (event, callback) => {
     outputFields: {
       locationName: result.locationName,
       businessName: result.businessName,
+      removedNote: result.removedNote,
       cleanAddress: result.cleanAddress,
       cleanAddress2: result.cleanAddress2,
       cleanCity: result.cleanCity,

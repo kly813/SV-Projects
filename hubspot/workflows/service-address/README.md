@@ -85,14 +85,14 @@ already clean.
 
 ## Before you enable it on all records
 
-**`location_name` is not always an address today.** Some records use it as a
-business name — `Builders Academy, Inc.`, `Millennium Engineers Group Inc`,
-`Clifton-Centreville Medical Associates and Trinity Longevity Center`.
-Enrolling all 191k records overwrites those permanently. Either enroll only
-records where `location_name` is unknown or already looks like an address, or
-copy the existing value to a backup property first.
+`location_name` is a derived field: it is always meant to hold the formatted
+full address, and the workflow overwrites it on every enrolled record. Some
+older records still hold a business name there instead (`Builders Academy,
+Inc.`, `Millennium Engineers Group Inc`). That is legacy data, not something
+to preserve — overwriting it is the point of this workflow. No backup needed.
 
-Run the dry run before enabling anything:
+Still worth a dry run first, to check the cleaner itself against a wide
+sample rather than to protect the old values:
 
 ```
 node test/dry-run.js [your-export.json]

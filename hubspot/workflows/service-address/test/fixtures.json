@@ -600,5 +600,58 @@
     "fields": {
       "cleanState": "IN-TS"
     }
+  },
+  {
+    "note": "QUOTES: wrapping straight quotes stripped (real record 55997035790)",
+    "in": {
+      "address": "\"1848 Pacific Coast Hwy \"",
+      "city": "Lomita",
+      "state": "CA",
+      "zip": "90717"
+    },
+    "expect": "1848 Pacific Coast Hwy, Lomita, CA 90717",
+    "fields": {
+      "cleanAddress": "1848 Pacific Coast Hwy"
+    }
+  },
+  {
+    "note": "QUOTES: curly quotes stripped",
+    "in": {
+      "address": "“1848 Pacific Coast Hwy”",
+      "city": "Lomita",
+      "state": "CA",
+      "zip": "90717"
+    },
+    "expect": "1848 Pacific Coast Hwy, Lomita, CA 90717",
+    "fields": {
+      "cleanAddress": "1848 Pacific Coast Hwy"
+    }
+  },
+  {
+    "note": "QUOTES: quoted city and zip stripped too",
+    "in": {
+      "address": "\"100 Main St\"",
+      "city": "\"Austin\"",
+      "state": "TX",
+      "zip": "\"78701\""
+    },
+    "expect": "100 Main St, Austin, TX 78701",
+    "fields": {
+      "cleanCity": "Austin",
+      "cleanZip": "78701"
+    }
+  },
+  {
+    "note": "QUOTES GUARD: apostrophes inside names survive",
+    "in": {
+      "address": "123 O'Brien Ct",
+      "city": "Coeur d'Alene",
+      "state": "ID",
+      "zip": "83814"
+    },
+    "expect": "123 O'Brien Ct, Coeur d'Alene, ID 83814",
+    "fields": {
+      "cleanAddress": "123 O'Brien Ct"
+    }
   }
 ]

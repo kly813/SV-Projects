@@ -159,8 +159,18 @@ function normalize(value) {
     .trim();
 }
 
+/**
+ * Strip separator punctuation and wrapping quote marks from both ends.
+ * Real records carry values like '"1848 Pacific Coast Hwy "', where someone
+ * pasted a quoted cell out of a spreadsheet. Straight and curly double quotes
+ * and backticks are removed; apostrophes inside a name are untouched because
+ * only the ends are trimmed.
+ */
 function trimSeparators(value) {
-  return normalize(value).replace(/^[\s,;:|]+/, '').replace(/[\s,;:|]+$/, '').trim();
+  return normalize(value)
+    .replace(/^[\s,;:|"\u201C\u201D`]+/, '')
+    .replace(/[\s,;:|"\u201C\u201D`]+$/, '')
+    .trim();
 }
 
 /** Lowercase, punctuation-free — for "are these the same thing?" tests. */

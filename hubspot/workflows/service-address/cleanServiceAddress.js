@@ -14,11 +14,14 @@
  *   zip      -> service_zip_code_7_24
  *
  * Output fields to declare (all String, except changed = Boolean):
- *   locationName, cleanAddress, cleanAddress2, cleanCity, cleanState,
- *   cleanZip, changed
+ *   locationName, cleanAddress, cleanAddress2, cleanCity, cleanZip, changed
  *
- * businessName is also returned. Declare it only if you want to keep a
- * business name typed ahead of the street; leaving it undeclared discards it.
+ * cleanState and businessName are also returned but are left undeclared by
+ * default, which discards them. cleanState would have to be declared as an
+ * Enumeration and its 113 options entered by hand, to change the 0.1% of
+ * records whose state is empty; the state still appears in locationName
+ * either way. Declare businessName to keep a business name typed ahead of
+ * the street.
  */
 
 // ---------------------------------------------------------------------------

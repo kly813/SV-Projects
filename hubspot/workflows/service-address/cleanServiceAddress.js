@@ -128,6 +128,16 @@ function extractBusinessName(text) {
 }
 
 /**
+ * Does this value open like a street? A house number followed by at least one
+ * more word. Used to spot a record whose street and city fields are swapped.
+ */
+function looksLikeStreet(value) {
+  const words = trimSeparators(value).split(' ').filter(Boolean);
+  if (words.length < 2) return false;
+  return HOUSE_NUMBER_RE.test(words[0]);
+}
+
+/**
  * Split "2720 N Malinche Ave Laredo" into street and city at the last street
  * suffix. Returns null when there is no confident split.
  */
@@ -381,6 +391,23 @@ function parseServiceAddress(input) {
   zip = formatZip(zip);
   state = cleanStateValue(state);
 
+  // Fields swapped: the street sits in the city box while the address box
+  // holds something that does not open a street at all — typically a business
+  // name. Move the street where it belongs. Whatever was in the address box is
+  // set aside as a business name rather than concatenated into the result.
+  //
+  // The city is deliberately NOT recovered from that leftover. In
+  // "Speedy Inspections AND Tire, Inc dba Speedy Tire and Muffler Garland" the
+  // city is the last word, but a business ending in "... and Muffler" in a city
+  // called "Garland Heights" would split the same way and produce a wrong city.
+  // Leaving it blank asks for a human instead of guessing.
+  let swappedLeftover = '';
+  if (looksLikeStreet(city) && !looksLikeStreet(street)) {
+    swappedLeftover = street;
+    street = city;
+    city = '';
+  }
+
   // The second line sometimes holds the city, or repeats the street.
   if (line2) {
     const key = compareKey(line2);
@@ -444,7 +471,7 @@ function parseServiceAddress(input) {
   if (street && !/[A-Za-z0-9]/.test(street)) street = '';
 
   const named = extractBusinessName(street);
-  const businessName = named.businessName;
+  const businessName = named.businessName || swappedLeftover;
   street = named.street;
 
   const streetPart = [street, line2].filter(Boolean).join(', ');

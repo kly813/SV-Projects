@@ -653,5 +653,48 @@
     "fields": {
       "cleanAddress": "123 O'Brien Ct"
     }
+  },
+  {
+    "note": "SWAP: street in the city field, business name in the address field (record 56700882775)",
+    "in": {
+      "address": "Speedy Inspections AND Tire, Inc dba Speedy Tire and Muffler Garland",
+      "address2": "",
+      "city": "1102 S 1st St",
+      "state": "TX",
+      "zip": "75040"
+    },
+    "expect": "1102 S 1st St, TX 75040",
+    "fields": {
+      "cleanAddress": "1102 S 1st St",
+      "cleanCity": "",
+      "businessName": "Speedy Inspections AND Tire, Inc dba Speedy Tire and Muffler Garland"
+    }
+  },
+  {
+    "note": "SWAP GUARD: normal record is not swapped",
+    "in": {
+      "address": "2720 N Malinche Ave",
+      "city": "Laredo",
+      "state": "TX",
+      "zip": "78043"
+    },
+    "expect": "2720 N Malinche Ave, Laredo, TX 78043",
+    "fields": {
+      "cleanCity": "Laredo"
+    }
+  },
+  {
+    "note": "SWAP GUARD: street without a house number is not swapped",
+    "in": {
+      "address": "S 162nd St",
+      "city": "New Berlin",
+      "state": "WI",
+      "zip": "53151"
+    },
+    "expect": "S 162nd St, New Berlin, WI 53151",
+    "fields": {
+      "cleanAddress": "S 162nd St",
+      "cleanCity": "New Berlin"
+    }
   }
 ]

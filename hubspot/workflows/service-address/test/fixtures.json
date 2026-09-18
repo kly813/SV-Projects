@@ -696,5 +696,90 @@
       "cleanAddress": "S 162nd St",
       "cleanCity": "New Berlin"
     }
+  },
+  {
+    "note": "PLACEHOLDER: 'dont have it' in three fields (record 36688887859)",
+    "in": {
+      "address": "dont have it",
+      "city": "dont have it",
+      "state": "MD",
+      "zip": "dont have it"
+    },
+    "expect": "MD",
+    "fields": {
+      "cleanAddress": "",
+      "cleanCity": "",
+      "cleanZip": ""
+    }
+  },
+  {
+    "note": "PLACEHOLDER: N/A variants cleared",
+    "in": {
+      "address": "N/A",
+      "city": "n/a",
+      "state": "TX",
+      "zip": "N/A"
+    },
+    "expect": "TX",
+    "fields": {
+      "cleanAddress": "",
+      "cleanCity": ""
+    }
+  },
+  {
+    "note": "PLACEHOLDER: only the junk field is cleared",
+    "in": {
+      "address": "100 Main St",
+      "city": "Unknown",
+      "state": "TX",
+      "zip": "78701"
+    },
+    "expect": "100 Main St, TX 78701",
+    "fields": {
+      "cleanAddress": "100 Main St",
+      "cleanCity": ""
+    }
+  },
+  {
+    "note": "PLACEHOLDER GUARD: real words are not placeholders",
+    "in": {
+      "address": "742 None Such Rd",
+      "city": "Nada",
+      "state": "TX",
+      "zip": "78701"
+    },
+    "expect": "742 None Such Rd, Nada, TX 78701",
+    "fields": {
+      "cleanAddress": "742 None Such Rd",
+      "cleanCity": "Nada"
+    }
+  },
+  {
+    "note": "DUPLICATE: same value in street and city, kept as city",
+    "in": {
+      "address": "Orlando",
+      "city": "Orlando",
+      "state": "FL",
+      "zip": "32805"
+    },
+    "expect": "Orlando, FL 32805",
+    "fields": {
+      "cleanAddress": "",
+      "cleanCity": "Orlando"
+    }
+  },
+  {
+    "note": "DUPLICATE: same value in street and city, kept as street",
+    "in": {
+      "address": "100 Main St",
+      "city": "100 Main St",
+      "state": "FL",
+      "zip": "32805"
+    },
+    "expect": "100 Main St, FL 32805",
+    "fields": {
+      "cleanAddress": "100 Main St",
+      "cleanCity": ""
+    }
   }
 ]

@@ -128,6 +128,29 @@ function extractBusinessName(text) {
 }
 
 /**
+ * Whole-field values that mean "nothing here". Compared against compareKey, so
+ * punctuation and case do not matter: "N/A", "n.a.", "dont have it" and
+ * "Don't Have It" all collapse to the same key.
+ *
+ * Matching is whole-value only, so a street called "None Such Rd" or a city
+ * called "Nada" is unaffected.
+ */
+const PLACEHOLDER_KEYS = {};
+for (const phrase of [
+  'na', 'nan', 'none', 'null', 'nil', 'unknown', 'unk', 'tbd', 'tba',
+  'test', 'testing', 'xxx', 'xxxx', 'zzz', 'pending', 'blank', 'empty',
+  'noaddress', 'nostreet', 'nocity', 'nozip', 'noneprovided', 'nonegiven',
+  'donthaveit', 'donothaveit', 'dontknow', 'donotknow', 'dontkno',
+  'notavailable', 'notprovided', 'notapplicable', 'notlisted', 'notknown',
+  'same', 'sameasabove', 'seeabove', 'unavailable', 'missing'
+]) PLACEHOLDER_KEYS[phrase] = true;
+
+function isPlaceholder(value) {
+  const key = compareKey(value);
+  return !!key && PLACEHOLDER_KEYS[key] === true;
+}
+
+/**
  * Does this value open like a street? A house number followed by at least one
  * more word. Used to spot a record whose street and city fields are swapped.
  */
@@ -368,6 +391,18 @@ function parseServiceAddress(input) {
   let city = trimSeparators(input.city);
   let state = trimSeparators(input.state);
   let zip = trimSeparators(input.zip);
+
+  // "dont have it", "N/A", "unknown" — typed in to get past a required field.
+  if (isPlaceholder(street)) street = '';
+  if (isPlaceholder(line2)) line2 = '';
+  if (isPlaceholder(city)) city = '';
+  if (isPlaceholder(zip)) zip = '';
+
+  // The same value in both the street and city boxes is one value entered
+  // twice, not two components. Keep it wherever it fits better.
+  if (street && city && compareKey(street) === compareKey(city)) {
+    if (looksLikeStreet(street)) city = ''; else street = '';
+  }
 
   // --- Pass 1: relocate whole fields that plainly hold the wrong component ---
 

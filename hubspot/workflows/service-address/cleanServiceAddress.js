@@ -16,12 +16,16 @@
  * Output fields to declare (all String, except changed = Boolean):
  *   locationName, cleanAddress, cleanAddress2, cleanCity, cleanZip, changed
  *
- * cleanState and businessName are also returned but are left undeclared by
- * default, which discards them. cleanState would have to be declared as an
- * Enumeration and its 113 options entered by hand, to change the 0.1% of
- * records whose state is empty; the state still appears in locationName
- * either way. Declare businessName to keep a business name typed ahead of
- * the street.
+ * Three more values are returned but left undeclared by default, which
+ * discards them:
+ *   cleanState   - would need an Enumeration output with all 113 state options
+ *                  entered by hand, to fill the 0.1% of records whose state is
+ *                  empty. The state appears in locationName either way.
+ *   businessName - a business name typed ahead of the street, e.g.
+ *                  "The Sheet Metal Shoppe 1218 S. Division Ave."
+ *   removedNote  - a free-text note typed after the street, e.g. a rep's call
+ *                  notes. Declare and map these two (String) to keep them;
+ *                  once the address field is overwritten they are gone.
  */
 
 // ---------------------------------------------------------------------------

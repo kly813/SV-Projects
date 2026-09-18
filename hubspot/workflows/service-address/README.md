@@ -172,3 +172,30 @@ suffixes).
 - A street that legitimately ends in its own city name **and** has a pasted
   state/zip tail loses the city twice (e.g. a real "… Mesilla" address in
   Mesilla that also had "NM 88046" pasted on). No live example found.
+
+## Stopping new duplicates at the source
+
+`findOrCreateServiceAddress.js` is a second custom code action, for the
+**company** workflow rather than the address one.
+
+The company workflow creates a Service Address every time a company is built
+out, so ten companies in one office building produce ten records for the same
+location. Service Addresses are one per physical location, shared by every
+company there, so this action looks for the existing record first and
+associates the company to it, creating one only when nothing matches.
+
+It is generated from `cleanServiceAddress.js` by `build-find-or-create.js`, so
+both actions normalize addresses identically and can never drift apart. Edit
+the cleaner, then re-run:
+
+```
+node build-find-or-create.js
+node test/test-find-or-create.js
+```
+
+Setup is in the file's header comment: a `HUBSPOT_TOKEN` secret on the action,
+five data inputs from the company's address properties, and four outputs.
+
+**Run the cleanup workflow across existing records first.** Matching compares
+normalized values, so a record still holding `2231 Avenida De Mesilla\nMesillaNM
+88046` will not be found until it has been cleaned.
